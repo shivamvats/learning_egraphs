@@ -1,0 +1,5 @@
+<launch>
+    <node name="gridworld" pkg="learning_egraphs" type="gridworld" output="screen">
+        <param name="mprim_path" value="$(find learning_egraphs)/config/xy_24_connected.mprim"/>
+    </node>
+</launch>
