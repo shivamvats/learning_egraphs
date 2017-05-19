@@ -5,7 +5,10 @@ project(learning_egraphs)
  add_definitions(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
-  smpl
+    smpl
+    sbpl_collision_checking
+    sbpl_kdl_robot_model
+    sbpl_pr2_robot_model
 )
 
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -42,12 +45,13 @@ include_directories(
 # add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 add_executable(gridworld src/gridworld.cpp)
+target_link_libraries(gridworld
+   ${catkin_LIBRARIES}
+   ${sbpl_LIBRARIES}
+ )
 
-# set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
-
-#add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
- target_link_libraries(gridworld
+add_executable(callPlanner src/call_planner.cpp)
+target_link_libraries(callPlanner
    ${catkin_LIBRARIES}
    ${sbpl_LIBRARIES}
  )
