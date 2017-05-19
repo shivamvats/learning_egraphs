@@ -1728,6 +1728,10 @@ int main(int argc, char* argv[])
     params.addParam("short_dist_mprims_thresh", planning_config.short_dist_mprims_thresh);
     params.addParam("repair_time", 5.0);
 
+    std::string temp("/home/aries/.ros/plans");
+    params.plan_output_dir = temp;
+    ROS_ERROR("ASFDSFD\n%s", params.plan_output_dir.c_str());
+
     params.addParam("epsilon", 100.0);
 
     if (!planner.init(params)) {
@@ -1751,7 +1755,7 @@ int main(int argc, char* argv[])
     moveit_msgs::MotionPlanRequest req;
     moveit_msgs::MotionPlanResponse res;
 
-    req.allowed_planning_time = 60.0;
+    req.allowed_planning_time = 40.0;
     req.goal_constraints.resize(1);
     FillGoalConstraint(goal, planning_frame, req.goal_constraints[0]);
     req.group_name = rm_config.group_name;

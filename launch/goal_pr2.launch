@@ -6,7 +6,7 @@
     <arg unless="$(arg debug)" name="launch-prefix" value=""/>
     <arg     if="$(arg debug)" name="launch-prefix" value="gdb ex --args"/>
 
-    <node pkg="smpl_test" type="callPlanner" name="call_planner"
+    <node pkg="learning_egraphs" type="callPlanner" name="call_planner"
             launch-prefix="$(arg launch-prefix)" output="screen">
         <param name="planning_frame" value="odom_combined"/>
 
@@ -33,15 +33,15 @@
         <rosparam command="load" file="$(find sbpl_collision_checking_test)/config/collision_model_pr2.yaml"/>
 
         <!-- planner params -->
-        <rosparam command="load" file="$(find smpl_test)/config/pr2_right_arm.yaml"/>
-        <param name="planning/mprim_filename" value="$(find smpl_test)/config/pr2.mprim"/>
+        <rosparam command="load" file="$(find learning_egraphs)/config/pr2_right_arm.yaml"/>
+        <param name="planning/mprim_filename" value="$(find learning_egraphs)/config/pr2.mprim"/>
 
         <!-- 2. scene -->
         <!-- 2.1 robot state -->
-        <rosparam command="load" file="$(find smpl_test)/experiments/pr2_goal.yaml"/>
+        <rosparam command="load" file="$(find learning_egraphs)/experiments/pr2_goal.yaml"/>
 
         <!-- 2.2 world state -->
-        <param name="object_filename" value="$(find smpl_test)/env/tabletop.env"/>
+        <param name="object_filename" value="$(find learning_egraphs)/env/tabletop.env"/>
 
         <!-- 3. scenario -->
     </node>
