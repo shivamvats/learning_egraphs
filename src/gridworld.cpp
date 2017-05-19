@@ -3,15 +3,17 @@
 
 #include <leatherman/print.h>
 #include <ros/ros.h>
-#include <sbpl/planners/araplanner.h>
+#include <smpl/search/experience_graph_planner.h>
 #include <smpl/collision_checker.h>
-#include <smpl/graph/manip_lattice.h>
+#include <smpl/graph/manip_lattice_egraph.h>
 #include <smpl/graph/manip_lattice_action_space.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
+#include <smpl/heuristic/egraph_bfs_heuristic.h>
 #include <smpl/occupancy_grid.h>
 #include <smpl/robot_model.h>
 
 namespace smpl = sbpl::motion;
+
 /// \brief Defines a Robot Model for an (x, y) point robot
 ///
 /// RobotModel base: basic requirements (variable types and limits)
@@ -293,7 +295,7 @@ int main(int argc, char* argv[])
 
     // 4. Instantiate Planning Space
     auto pspace =
-            std::make_shared<smpl::ManipLattice>(&robot_model, &cc, &params);
+            std::make_shared<smpl::ManipLatticeEgraph>(&robot_model, &cc, &params);
     if (!pspace->init({ 0.02, 0.02 })) {
         ROS_ERROR("Failed to initialize Manip Lattice");
         return 1;
@@ -317,7 +319,7 @@ int main(int argc, char* argv[])
     pspace->setActionSpace(aspace);
 
     // 7. Instantiate Heuristic
-    auto h = std::make_shared<smpl::JointDistHeuristic>(pspace, &grid);
+    auto h = std::make_shared<smpl::DijkstraEgraphHeuristic3D>(pspace, &grid);
 
     // 8. Associate Heuristic with Planning Space (for adaptive motion
     // primitives)
@@ -325,7 +327,7 @@ int main(int argc, char* argv[])
 
     // 9. Instantiate and Initialize Search (associated with Planning Space)
     const bool forward = true;
-    auto search = std::make_shared<ARAPlanner>(pspace.get(), forward);
+    auto search = std::make_shared<smpl::ExperienceGraphPlanner>(pspace, h);
 
     const double epsilon = 5.0;
     search->set_initialsolution_eps(epsilon);
