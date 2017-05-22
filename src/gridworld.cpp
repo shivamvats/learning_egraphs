@@ -3,14 +3,24 @@
 
 #include <leatherman/print.h>
 #include <ros/ros.h>
+#include <moveit_msgs/GetMotionPlan.h>
+#include <moveit_msgs/PlanningScene.h>
+
 #include <smpl/search/experience_graph_planner.h>
 #include <smpl/collision_checker.h>
 #include <smpl/graph/manip_lattice_egraph.h>
 #include <smpl/graph/manip_lattice_action_space.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
+#include <smpl/heuristic/euclid_dist_heuristic.h>
+#include <smpl/heuristic/generic_egraph_heuristic.h>
 #include <smpl/occupancy_grid.h>
 #include <smpl/robot_model.h>
+
+#include <visualization_msgs/MarkerArray.h>
+#include <smpl/debug/visualizer_ros.h>
+
+#include "utils.h"
 
 namespace smpl = sbpl::motion;
 
@@ -266,6 +276,24 @@ int main(int argc, char* argv[])
     ros::NodeHandle nh;
     ros::NodeHandle ph("~");
 
+    sbpl::VisualizerROS visualizer(nh, 100);
+    sbpl::viz::set_visualizer(&visualizer);
+
+    ros::Publisher ma_pub = nh.advertise<visualization_msgs::MarkerArray>(
+            "visualization_markers", 100);
+
+    // let publishers set up
+    ros::Duration(1.0).sleep();
+
+    // everyone needs to know the name of the planning frame for reasons...
+    std::string planning_frame;
+    if (!ph.getParam("planning_frame", planning_frame)) {
+        ROS_ERROR("Failed to retrieve param 'planning_frame' from the param server");
+        return 1;
+    }
+
+    ROS_INFO("Planning Frame: %s", planning_frame.c_str());
+
     // 1. Instantiate Robot Model
     KinematicVehicleModel robot_model;
 
@@ -285,8 +313,14 @@ int main(int argc, char* argv[])
             world_origin_x, world_origin_y, world_origin_z,
             max_distance_m,
             ref_count);
+    grid.setReferenceFrame(planning_frame);
     SetupOccupancyGrid(grid);
     PrintGrid(std::cout, grid);
+
+    // Visualize the obstacles.
+    ma_pub.publish(grid.getOccupiedVoxelsVisualization());
+    // Visualize the boundary.
+    ma_pub.publish(grid.getBoundingBoxVisualization());
 
     GridCollisionChecker cc(&grid);
 
@@ -319,15 +353,16 @@ int main(int argc, char* argv[])
     pspace->setActionSpace(aspace);
 
     // 7. Instantiate Heuristic
-    auto h = std::make_shared<smpl::DijkstraEgraphHeuristic3D>(pspace, &grid);
+    auto h = std::make_shared<smpl::JointDistHeuristic>(pspace, &grid);
+    auto hEgraph = std::make_shared<smpl::GenericEgraphHeuristic>(pspace, &grid, h);
 
     // 8. Associate Heuristic with Planning Space (for adaptive motion
     // primitives)
-    pspace->insertHeuristic(h.get());
+    pspace->insertHeuristic(hEgraph.get());
 
     // 9. Instantiate and Initialize Search (associated with Planning Space)
     const bool forward = true;
-    auto search = std::make_shared<smpl::ExperienceGraphPlanner>(pspace, h);
+    auto search = std::make_shared< smpl::ExperienceGraphPlanner >(pspace, hEgraph);
 
     const double epsilon = 5.0;
     search->set_initialsolution_eps(epsilon);
@@ -337,11 +372,19 @@ int main(int argc, char* argv[])
     // propagate state IDs to search
     double start_x = 0.5;
     double start_y = 0.33;
-    const smpl::RobotState start_state = { start_x, start_y };
+    //double start_z = 1.0;
+
+    const smpl::RobotState start_state = { start_x, start_y};//, start_z };
+    moveit_msgs::RobotState start_state_msg;
+    start_state_msg.joint_state.name.push_back("x");
+    start_state_msg.joint_state.name.push_back("y");
+    start_state_msg.joint_state.position.push_back(start_x);
+    start_state_msg.joint_state.position.push_back(start_y);
 
     double goal_x = 0.5;
     double goal_y = 0.66;
-    const smpl::RobotState goal_state = { goal_x, goal_y };
+    //double goal_z = 1.0;
+    const smpl::RobotState goal_state = { goal_x, goal_y};//, goal_z };
 
     smpl::GoalConstraint goal;
     goal.type = smpl::GoalType::JOINT_STATE_GOAL;
@@ -380,6 +423,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+
     // 11. Plan a path
 
     ReplanParams search_params(10.0);
@@ -399,6 +443,7 @@ int main(int argc, char* argv[])
     }
     auto now = std::chrono::high_resolution_clock::now();
     const double elapsed = std::chrono::duration<double>(now - then).count();
+    ROS_ERROR("Yipeee. got till here");
 
     // 12. Extract path from Planning Space
 
@@ -406,6 +451,14 @@ int main(int argc, char* argv[])
     if (!pspace->extractPath(solution, path)) {
         ROS_ERROR("Failed to extract path");
     }
+
+    std::string plan_output_dir = "/home/aries/.ros/plans";
+
+    moveit_msgs::RobotTrajectory rTraj;
+    convertJointVariablePathToJointTrajectory(path, rTraj.joint_trajectory, &robot_model, planning_frame);
+    moveit_msgs::RobotState trajectory_start;
+    writePath(start_state_msg, rTraj, &robot_model, plan_output_dir);
+
 
     ROS_INFO("Path found!");
     ROS_INFO("  Planning Time: %0.3f", elapsed);

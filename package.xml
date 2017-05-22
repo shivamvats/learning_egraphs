@@ -42,8 +42,14 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>sbpl</build_depend>
   <build_depend>smpl</build_depend>
+  <build_depend>sbpl_collision_checking</build_depend>
+  <build_depend>sbpl_kdl_robot_model</build_depend>
+  <build_depend>sbpl_pr2_robot_model</build_depend>
   <run_depend>sbpl</run_depend>
   <run_depend>smpl</run_depend>
+  <run_depend>sbpl_collision_checking</run_depend>
+  <run_depend>sbpl_kdl_robot_model</run_depend>
+  <run_depend>sbpl_pr2_robot_model</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

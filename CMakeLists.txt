@@ -29,11 +29,13 @@ find_package(sbpl REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES learning_egraphs
-  CATKIN_DEPENDS smpl
+  CATKIN_DEPENDS smpl sbpl_collision_checking sbpl_kdl_robot_model
+                sbpl_pr2_robot_model
   DEPENDS sbpl
 )
 
 include_directories(
+    include
   ${catkin_INCLUDE_DIRS}
   ${sbpl_INCLUDE_DIRS}
 )
@@ -44,7 +46,7 @@ include_directories(
 # )
 # add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(gridworld src/gridworld.cpp)
+add_executable(gridworld src/gridworld.cpp src/utils.cpp)
 target_link_libraries(gridworld
    ${catkin_LIBRARIES}
    ${sbpl_LIBRARIES}

@@ -1,5 +1,14 @@
 <launch>
-    <node name="gridworld" pkg="learning_egraphs" type="gridworld" output="screen">
+    <node name="gridworld" pkg="learning_egraphs" type="gridworld"
+output="screen" >
         <param name="mprim_path" value="$(find learning_egraphs)/config/xy_24_connected.mprim"/>
+        <param name="planning_frame" value="odom_combined"/>
+
+        <param name="plan_output_dir" value="//home/aries/.ros/plans"/>
+        <param name="start/x" value="0.5" />
+        <param name="start/y" value="0.33" />
+
+        <param name="goal/x" value="0.5" />
+        <param name="goal/y" value="0.66" />
     </node>
 </launch>
