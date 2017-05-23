@@ -2,6 +2,8 @@
 #include <chrono>
 
 #include <leatherman/print.h>
+#include <leatherman/viz.h>
+
 #include <ros/ros.h>
 #include <moveit_msgs/GetMotionPlan.h>
 #include <moveit_msgs/PlanningScene.h>
@@ -18,6 +20,8 @@
 #include <smpl/robot_model.h>
 
 #include <visualization_msgs/MarkerArray.h>
+#include <visualization_msgs/Marker.h>
+
 #include <smpl/debug/visualizer_ros.h>
 
 #include "utils.h"
@@ -270,34 +274,50 @@ void PrintActionSpace(const smpl::ManipLatticeActionSpace& aspace)
     }
 }
 
-int main(int argc, char* argv[])
-{
-    ros::init(argc, argv, "xytheta");
-    ros::NodeHandle nh;
-    ros::NodeHandle ph("~");
+visualization_msgs::Marker getPointVisualization(geometry_msgs::Point point_, std::string frame, std::string ns) {
+    visualization_msgs::Marker point;
+    point.header.frame_id = frame;
+    point.header.stamp = ros::Time::now();
+    point.ns = ns;
+    point.action = visualization_msgs::Marker::ADD;
+    point.pose.orientation.w = 1.0;
+    point.id = 0;
+    point.type = visualization_msgs::Marker::POINTS;
+    point.scale.x = 0.2;
+    point.scale.y = 0.2;
+    point.scale.z = 0.2;
+    point.color.g = 1.0;
+    point.color.b = 1.0;
+    point.color.a = 1;
 
-    sbpl::VisualizerROS visualizer(nh, 100);
-    sbpl::viz::set_visualizer(&visualizer);
+    point.points.push_back(point_);
 
-    ros::Publisher ma_pub = nh.advertise<visualization_msgs::MarkerArray>(
-            "visualization_markers", 100);
+    //visualization_msgs::MarkerArray points;
+    //points.markers = {point};
 
-    // let publishers set up
-    ros::Duration(1.0).sleep();
+    return point;
+}
 
-    // everyone needs to know the name of the planning frame for reasons...
-    std::string planning_frame;
-    if (!ph.getParam("planning_frame", planning_frame)) {
-        ROS_ERROR("Failed to retrieve param 'planning_frame' from the param server");
-        return 1;
-    }
+visualization_msgs::Marker getLineVisualization(std::vector<geometry_msgs::Point> points, std::string frame, std::string ns) {
+    visualization_msgs::Marker line_strip;
+    line_strip.header.frame_id = frame;
+    line_strip.header.stamp = ros::Time::now();
+    line_strip.ns = ns;
+    line_strip.action = visualization_msgs::Marker::ADD;
+    line_strip.pose.orientation.w = 1.0;
+    line_strip.id = 1;
+    line_strip.type = visualization_msgs::Marker::LINE_STRIP;
+    line_strip.scale.x = 0.001;
+    line_strip.color.g = 1.0;
+    line_strip.color.a = 1;
 
-    ROS_INFO("Planning Frame: %s", planning_frame.c_str());
+    for(auto point : points)
+        line_strip.points.push_back(point);
 
-    // 1. Instantiate Robot Model
-    KinematicVehicleModel robot_model;
+    return line_strip;
+}
 
-    // 2. Instantiate the Environment
+sbpl::OccupancyGrid setupOccupancyGrid(std::string planning_frame) {
     const double grid_res = 0.02;
     const double world_size_x = 1.0;
     const double world_size_y = 1.0;
@@ -317,9 +337,44 @@ int main(int argc, char* argv[])
     SetupOccupancyGrid(grid);
     PrintGrid(std::cout, grid);
 
-    // Visualize the obstacles.
+    return grid;
+}
+
+int main(int argc, char* argv[])
+{
+    std::string ns = "xytheta";
+    ros::init(argc, argv, ns);
+    ros::NodeHandle nh;
+    ros::NodeHandle ph("~");
+
+    sbpl::VisualizerROS visualizer(nh, 100);
+    sbpl::viz::set_visualizer(&visualizer);
+
+    ros::Publisher ma_pub = nh.advertise<visualization_msgs::MarkerArray>(
+            "visualization_markers", 100);
+    ros::Publisher m_pub = nh.advertise<visualization_msgs::Marker>(
+            "visualization_marker", 100);
+
+    // let publishers set up
+    ros::Duration(1.0).sleep();
+
+    // everyone needs to know the name of the planning frame for reasons...
+    std::string planning_frame;
+    if (!ph.getParam("planning_frame", planning_frame)) {
+        ROS_ERROR("Failed to retrieve param 'planning_frame' from the param server");
+        return 1;
+    }
+
+    ROS_INFO("Planning Frame: %s", planning_frame.c_str());
+
+    // 1. Instantiate Robot Model
+    KinematicVehicleModel robot_model;
+
+    // 2. Instantiate the Environment
+    sbpl::OccupancyGrid grid = setupOccupancyGrid(planning_frame);
+
+    // Visualize the obstacles and boundary.
     ma_pub.publish(grid.getOccupiedVoxelsVisualization());
-    // Visualize the boundary.
     ma_pub.publish(grid.getBoundingBoxVisualization());
 
     GridCollisionChecker cc(&grid);
@@ -423,9 +478,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-
     // 11. Plan a path
-
     ReplanParams search_params(10.0);
     search_params.initial_eps = epsilon;
     search_params.final_eps = 1.0;
@@ -446,19 +499,30 @@ int main(int argc, char* argv[])
     ROS_ERROR("Yipeee. got till here");
 
     // 12. Extract path from Planning Space
-
     std::vector<smpl::RobotState> path;
     if (!pspace->extractPath(solution, path)) {
         ROS_ERROR("Failed to extract path");
     }
 
+    // Visualize the path.
+    std::vector<geometry_msgs::Point> pathPoints;
+    for(auto node : path) {
+        geometry_msgs::Point point;
+        point.x = node[0];
+        point.y = node[1];
+        pathPoints.push_back(point);
+        //ROS_INFO("%f %f", point.x, point.y);
+    }
+    m_pub.publish(getLineVisualization(pathPoints, planning_frame, ns));
+ 
+    // Save the path in a file.
     std::string plan_output_dir = "/home/aries/.ros/plans";
 
     moveit_msgs::RobotTrajectory rTraj;
     convertJointVariablePathToJointTrajectory(path, rTraj.joint_trajectory, &robot_model, planning_frame);
+    ROS_ERROR("Size= %d", rTraj.joint_trajectory.points.size());
     moveit_msgs::RobotState trajectory_start;
     writePath(start_state_msg, rTraj, &robot_model, plan_output_dir);
-
 
     ROS_INFO("Path found!");
     ROS_INFO("  Planning Time: %0.3f", elapsed);

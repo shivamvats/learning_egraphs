@@ -2,7 +2,7 @@
     <node name="gridworld" pkg="learning_egraphs" type="gridworld"
 output="screen" >
         <param name="mprim_path" value="$(find learning_egraphs)/config/xy_24_connected.mprim"/>
-        <param name="planning_frame" value="odom_combined"/>
+        <param name="planning_frame" value="/map"/>
 
         <param name="plan_output_dir" value="//home/aries/.ros/plans"/>
         <param name="start/x" value="0.5" />

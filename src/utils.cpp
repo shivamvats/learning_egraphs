@@ -27,8 +27,9 @@ bool writePath(
     }
 
     std::stringstream ss_filename;
-    //auto now = clock::now();
-    //ss_filename << "path_" << now.time_since_epoch().count();
+    auto now = std::chrono::high_resolution_clock::now();
+;
+    ss_filename << "path_" << now.time_since_epoch().count();
     p /= ss_filename.str();
 
     std::ofstream ofs(p.native());
