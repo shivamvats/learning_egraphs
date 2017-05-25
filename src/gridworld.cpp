@@ -391,6 +391,13 @@ int main(int argc, char* argv[])
     }
     pspace->setVisualizationFrameId("map");
 
+    std::string egraph_file;
+    if (ph.getParam("egraph_file", egraph_file)) {
+        ROS_INFO("Received egraph file path: %s. Loading...", egraph_file.c_str());
+        if(!pspace->loadExperienceGraph(egraph_file))
+            ROS_ERROR("Failed to load experience graph");
+    }
+
     // 5. Instantiate and Initialize Motion Primitives
     std::string mprim_path;
     if (!ph.getParam("mprim_path", mprim_path)) {
@@ -425,7 +432,7 @@ int main(int argc, char* argv[])
 
     // 10. Set start state and goal condition in the Planning Space and
     // propagate state IDs to search
-    double start_x = 0.5;
+    double start_x = 0.6;
     double start_y = 0.33;
     //double start_z = 1.0;
 
